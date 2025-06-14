@@ -1,0 +1,35 @@
+# ==== General Python artifacts ====
+# Python bytecode cache folders at any depth
+**/__pycache__/
+# Compiled Python files (.pyc, .pyo, .pyd)
+*.py[cod]
+
+# ==== Virtual environment ====
+# Python virtual environment folder
+.venv/
+
+# ==== IDE specific files ====
+# PyCharm project settings folder
+.idea/
+
+# ==== Database ====
+# SQLite database file used in development
+**/db.sqlite3
+
+# ==== Logs ====
+# Application and server log files
+**/*.log
+
+# ==== Environment variables ====
+# Local environment config file (e.g., secrets, keys)
+.env
+
+# ==== Testing ====
+# Pytest cache directory
+.pytest_cache/
+
+# ==== OS-specific system files ====
+# MacOS folder view preferences
+.DS_Store
+# Windows thumbnail cache for folder images
+Thumbs.db

@@ -3,7 +3,7 @@ from django.db import models
 from django.utils import timezone
 
 class Post(models.Model):
-    # Enum-style choices for post status used in the 'status' field
+    # Enum-style choices for post status used in the status field
     class Status(models.TextChoices):
         DRAFT = 'DF', 'Draft'
         PUBLISHED = 'PB', 'Published'

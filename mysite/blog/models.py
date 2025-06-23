@@ -2,6 +2,12 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+# Define a custom manager to handle queries specific to published posts
+class PublishedManager(models.Manager):
+    def get_queryset(self):
+        # Override the default queryset to return only posts with PUBLISHED status
+        return super().get_queryset().filter(status=Post.Status.PUBLISHED)
+
 class Post(models.Model):
     # Enum-style choices for post status used in the status field
     class Status(models.TextChoices):
@@ -27,6 +33,11 @@ class Post(models.Model):
         choices=Status,
         default=Status.DRAFT
     )
+
+    #The default manager
+    objects = models.Manager()
+    # Custom manager
+    published = PublishedManager()
 
     class Meta:
         # Order posts by most recent publication date first

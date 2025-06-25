@@ -11,6 +11,8 @@
 # ==== IDE specific files ====
 # PyCharm project settings folder
 .idea/
+# VSCode project settings folder
+.vscode/
 
 # ==== Database ====
 # SQLite database file used in development

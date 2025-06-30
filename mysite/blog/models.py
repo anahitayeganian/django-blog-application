@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.urls import reverse
 from django.utils import timezone
 
 # Define a custom manager to handle queries specific to published posts
@@ -50,3 +51,7 @@ class Post(models.Model):
     # Human-readable representation of a post instance
     def __str__(self):
         return self.title
+
+    # Returns the absolute URL to access the detail view of this post instance
+    def get_absolute_url(self):
+        return reverse('blog:post_detail', args=[self.id])

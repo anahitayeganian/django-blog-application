@@ -17,7 +17,9 @@ class Post(models.Model):
 
     title = models.CharField(max_length=250)
     # URL-friendly version of the title
-    slug = models.SlugField(max_length=250)
+    # The slug field is required to be unique for the date stored in the publication_date field
+    # Although publication_date is a DateTimeField, uniqueness is checked using just the date portion
+    slug = models.SlugField(max_length=250, unique_for_date='publication_date')
     # ForeignKey to the author (user); enables reverse access via blog_posts
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,

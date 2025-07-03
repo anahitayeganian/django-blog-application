@@ -9,5 +9,5 @@ urlpatterns = [
     # Displays a list of blog posts
     path('', views.post_list, name='post_list'),
     # Displays details of a specific blog post
-    path('<int:id>/', views.post_detail, name='post_detail'),
+    path('<int:year>/<int:month>/<int:day>/<slug:post>/', views.post_detail, name='post_detail'),
 ]

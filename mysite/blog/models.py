@@ -56,4 +56,5 @@ class Post(models.Model):
 
     # Returns the absolute URL to access the detail view of this post instance
     def get_absolute_url(self):
-        return reverse('blog:post_detail', args=[self.id])
+        return reverse('blog:post_detail', args=[self.publication_date.year, self.publication_date.month,
+                                                 self.publication_date.day, self.slug])

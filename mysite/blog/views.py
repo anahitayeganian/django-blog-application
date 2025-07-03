@@ -16,18 +16,22 @@ def post_list(request):
         {'posts': posts}
     )
 
-def post_detail(request, id):
+def post_detail(request, year, month, day, post):
     """
-    Retrieve a single published blog post by its ID and render it in the post detail template.
+    Retrieve a single published blog post by its slug and publication date, and render it in the post detail template.
     Args:
         request: The HTTP request object.
-        id (int): The primary key of the post to retrieve.
+        year (int): The year the post was published.
+        month (int): The month the post was published.
+        day (int): The day the post was published.
+        post (str): The slug of the post to retrieve.
     Returns:
         HttpResponse with the rendered 'blog/post/detail.html' template, containing the post in the context.
     Raises:
-        Http404: If no published post with the given ID exists.
+        Http404: If no published post with the given slug and date exists.
     """
-    post = get_object_or_404(Post, id=id, status=Post.Status.PUBLISHED)
+    post = get_object_or_404(Post, status=Post.Status.PUBLISHED, slug=post, publication_date__year=year,
+                             publication_date__month=month, publication_date__day=day)
     return render(
         request,
         'blog/post/detail.html',

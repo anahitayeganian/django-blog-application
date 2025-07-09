@@ -1,6 +1,7 @@
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.shortcuts import get_object_or_404, render
 from .models import Post
+from django.views.generic import ListView
 
 def post_list(request):
     """
@@ -65,3 +66,13 @@ def post_detail(request, year, month, day, post):
         'blog/post/detail.html',
         {'post': post}
     )
+
+class PostListView(ListView):
+    """
+    Displays a paginated list of published blog posts.
+    Uses the blog/post/list.html template and shows 5 posts per page.
+    """
+    queryset = Post.published.all()
+    context_object_name = 'posts'
+    paginate_by = 5
+    template_name = 'blog/post/list.html'

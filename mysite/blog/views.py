@@ -1,7 +1,9 @@
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.shortcuts import get_object_or_404, render
-from .models import Post
 from django.views.generic import ListView
+from .forms import EmailPostForm
+from .models import Post
+from .services import send_post_recommendation_email
 
 def post_list(request):
     """
@@ -65,6 +67,51 @@ def post_detail(request, year, month, day, post):
         request,
         'blog/post/detail.html',
         {'post': post}
+    )
+
+def post_share(request, post_id):
+    """
+    Handle the logic for sharing a blog post via email.
+
+    Args:
+        request (HttpRequest): The HTTP request object.
+        post_id (int): The ID of the post to be shared.
+
+    Returns:
+        HttpResponse: HTML response with the rendered 'blog/post/share.html' template.
+
+    Raises:
+        Http404: If no published post with the given ID exists.
+    """
+    post = get_object_or_404(
+        Post,
+        id=post_id,
+        status=Post.Status.PUBLISHED
+    )
+    sent = False
+
+    if request.method == 'POST':
+        # Form was submitted
+        form = EmailPostForm(request.POST)
+        if form.is_valid():
+            # Extract cleaned form data after validation
+            cd = form.cleaned_data
+            # Build the full absolute URL to the post for inclusion in the email
+            post_url = request.build_absolute_uri(post.get_absolute_url())
+            # Delegate email sending to the service layer
+            send_post_recommendation_email(post, cd, post_url)
+            sent = True
+    else:
+        form = EmailPostForm()
+
+    return render(
+        request,
+        'blog/post/share.html',
+        {
+            'post': post,
+            'form': form,
+            'sent': sent
+        }
     )
 
 class PostListView(ListView):

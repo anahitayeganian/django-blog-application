@@ -65,3 +65,34 @@ class Post(models.Model):
                 self.slug
             ]
         )
+
+class Comment(models.Model):
+    # Many-to-One relationship that links each comment to a single Post
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name='comments'
+    )
+    # The name of the comment author
+    name = models.CharField(max_length=80)
+    # The author's email address
+    email = models.EmailField()
+    # The main content of the comment
+    body = models.TextField()
+    # Timestamp set automatically when the comment is first created
+    created_at = models.DateTimeField(auto_now_add=True)
+    # Timestamp updated automatically on each save
+    updated_at = models.DateTimeField(auto_now=True)
+    # Enables soft moderation by toggling visibility without deleting the comment
+    is_visible = models.BooleanField(default=True, help_text='Uncheck to hide inappropriate comments.')
+
+    class Meta:
+        # Default ordering: oldest comments appear first
+        ordering = ['created_at']
+        # Index on creation timestamp to optimize filtering and sorting by date
+        indexes = [
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f'Comment by {self.name} on {self.post}'

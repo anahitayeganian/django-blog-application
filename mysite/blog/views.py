@@ -1,7 +1,8 @@
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.shortcuts import get_object_or_404, render
+from django.views.decorators.http import require_POST
 from django.views.generic import ListView
-from .forms import EmailPostForm
+from .forms import CommentForm, EmailPostForm
 from .models import Post
 from .services import send_post_recommendation_email
 
@@ -39,20 +40,20 @@ def post_list(request):
 
 def post_detail(request, year, month, day, post):
     """
-    Retrieve a single published blog post by its slug and publication date, and render it in the post detail template.
+    Retrieve and render a published blog post based on its slug and publication date.
 
     Args:
         request (HttpRequest): The HTTP request object.
         year (int): The year the post was published.
         month (int): The month the post was published.
         day (int): The day the post was published.
-        post (str): The slug of the post to retrieve.
+        post (str): The slug identifying the post.
 
     Returns:
         HttpResponse: HTML response with the rendered 'blog/post/detail.html' template.
 
     Raises:
-        Http404: If no published post with the given slug and date exists.
+        Http404: If no matching published post is found for the given slug and date.
     """
     post = get_object_or_404(
         Post,
@@ -63,10 +64,19 @@ def post_detail(request, year, month, day, post):
         publication_date__day=day
     )
 
+    # Retrieve visible comments related to the post
+    comments = post.comments.filter(is_visible=True)
+    # Initialize an empty form for user submissions
+    form = CommentForm()
+
     return render(
         request,
         'blog/post/detail.html',
-        {'post': post}
+        {
+            'post': post,
+            'comments': comments,
+            'form': form
+        }
     )
 
 def post_share(request, post_id):
@@ -83,11 +93,7 @@ def post_share(request, post_id):
     Raises:
         Http404: If no published post with the given ID exists.
     """
-    post = get_object_or_404(
-        Post,
-        id=post_id,
-        status=Post.Status.PUBLISHED
-    )
+    post = Post.published.get_by_id_or_404(post_id)
     sent = False
 
     if request.method == 'POST':
@@ -111,6 +117,48 @@ def post_share(request, post_id):
             'post': post,
             'form': form,
             'sent': sent
+        }
+    )
+
+@require_POST
+def post_comment(request, post_id):
+    """
+    Handle the submission of a comment on a specific blog post.
+    This view processes a POST request containing comment data submitted via a form.
+    If the form is valid, it associates the comment with the corresponding published post,
+    saves the comment to the database, and renders a confirmation message using the 'comment.html' template.
+    If the form is invalid, the same template is rendered again with the form and validation errors. The comment form
+    itself is included via the 'includes/comment_form.html' template.
+
+    Args:
+        request (HttpRequest): The HTTP request object containing the submitted form data.
+        post_id (int): The ID of the blog post being commented on.
+
+    Returns:
+        HttpResponse: HTML response with the rendered 'blog/post/comment.html' template.
+
+    Raises:
+        Http404: If no published post with the given ID exists.
+    """
+    post = Post.published.get_by_id_or_404(post_id)
+    comment = None
+
+    form = CommentForm(data=request.POST)
+    if form.is_valid():
+        # Create a new unsaved Comment instance from the validated form data
+        comment = form.save(commit=False)
+        # Associate the comment with the current post
+        comment.post = post
+        # Save the fully initialized comment instance to the database
+        comment.save()
+
+    return render(
+        request,
+        'blog/post/comment.html',
+        {
+            'post': post,
+            'form': form,
+            'comment': comment
         }
     )
 

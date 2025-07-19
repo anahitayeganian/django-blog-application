@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 
@@ -8,6 +9,9 @@ class PublishedManager(models.Manager):
     def get_queryset(self):
         # Override the default queryset to return only posts with PUBLISHED status
         return super().get_queryset().filter(status=Post.Status.PUBLISHED)
+
+    def get_by_id_or_404(self, post_id):
+        return get_object_or_404(self.get_queryset(), id=post_id)
 
 class Post(models.Model):
     # Enum-style choices for post status used in the status field

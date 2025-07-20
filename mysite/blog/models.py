@@ -3,6 +3,7 @@ from django.db import models
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
+from taggit.managers import TaggableManager
 
 # Define a custom manager to handle queries specific to published posts
 class PublishedManager(models.Manager):
@@ -45,6 +46,8 @@ class Post(models.Model):
     objects = models.Manager()
     # Custom manager
     published = PublishedManager()
+    # Enables tagging functionality for the Post model using django-taggit
+    tags = TaggableManager()
 
     class Meta:
         # Order posts by most recent publication date first

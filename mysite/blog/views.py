@@ -2,11 +2,12 @@ from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 from django.views.generic import ListView
+from taggit.models import Tag
 from .forms import CommentForm, EmailPostForm
 from .models import Post
 from .services import send_post_recommendation_email
 
-def post_list(request):
+def post_list(request, tag_slug=None):
     """
     Retrieve all published blog posts and render them with pagination support.
 
@@ -17,6 +18,12 @@ def post_list(request):
         HttpResponse: HTML response with the rendered 'blog/post/list.html' template.
     """
     post_list = Post.published.all()
+    tag = None
+    if tag_slug:
+        # Retrieve the tag object by its slug or return 404 if not found
+        tag = get_object_or_404(Tag, slug=tag_slug)
+        # Filter posts by the specified tag
+        post_list = post_list.filter(tags__in=[tag])
     # Paginate posts: 5 per page
     paginator = Paginator(post_list, 5)
     # Retrieve the current page number from the GET query parameters, defaulting to 1 if absent
@@ -35,7 +42,10 @@ def post_list(request):
     return render(
         request,
         'blog/post/list.html',
-        {'posts': posts}
+        {
+            'posts': posts,
+            'tag': tag
+        }
     )
 
 def post_detail(request, year, month, day, post):

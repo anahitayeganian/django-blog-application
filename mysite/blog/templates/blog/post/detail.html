@@ -13,6 +13,16 @@
             Share this post
         </a>
     </p>
+
+    <h2>Similar posts</h2>
+    {% for post in similar_posts %}
+        <p>
+            <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+        </p>
+    {% empty %}
+        <p>There are no similar posts yet.</p>
+    {% endfor %}
+
     {% with comments.count as total_comments %}
         <h3>
             {{ total_comments }} comment{{ total_comments|pluralize }}
@@ -26,7 +36,7 @@
             {{ comment.body|linebreaks }}
         </div>
     {% empty %}
-        <p>There are no comments.</p>
+        <p>There are no comments yet.</p>
     {% endfor %}
     {% include "blog/post/includes/comment_form.html" %}
 {% endblock %}

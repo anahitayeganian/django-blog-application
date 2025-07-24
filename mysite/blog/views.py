@@ -1,4 +1,5 @@
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 from django.views.generic import ListView
@@ -9,10 +10,11 @@ from .services import send_post_recommendation_email
 
 def post_list(request, tag_slug=None):
     """
-    Retrieve all published blog posts and render them with pagination support.
+    Display a list of published blog posts with pagination. If a tag is specified, only posts with that tag are shown.
 
     Args:
-        request (HttpRequest): The HTTP request object.
+        request (HttpRequest): The incoming HTTP request, potentially containing a page GET parameter.
+        tag_slug (str, optional): The slug of the tag used to filter the posts. Defaults to None.
 
     Returns:
         HttpResponse: HTML response with the rendered 'blog/post/list.html' template.
@@ -60,7 +62,8 @@ def post_detail(request, year, month, day, post):
         post (str): The slug identifying the post.
 
     Returns:
-        HttpResponse: HTML response with the rendered 'blog/post/detail.html' template.
+        HttpResponse: HTML response with the rendered 'blog/post/detail.html' template, including the post, its
+        comments, an empty comment submission form, and a list of up to four similar posts based on shared tags.
 
     Raises:
         Http404: If no matching published post is found for the given slug and date.
@@ -79,13 +82,29 @@ def post_detail(request, year, month, day, post):
     # Initialize an empty form for user submissions
     form = CommentForm()
 
+    # Retrieve the IDs of tags associated with the current post
+    post_tags_ids = post.tags.values_list('id', flat=True)
+    # Find up to 4 published posts that share the most tags with the current post
+    # Use a Q object to filter only tags that match those of the current post, and ensure the count
+    # is distinct to avoid duplicates
+    # Order the results by the number of shared tags (descending), then by publication date (most recent first)
+    similar_posts = (
+        Post.published
+        .filter(tags__in=post_tags_ids)
+        .exclude(id=post.id)
+        .annotate(
+            same_tags=Count('tags', filter=Q(tags__in=post_tags_ids), distinct=True)
+        ).order_by('-same_tags', '-publication_date')[:4]
+    )
+
     return render(
         request,
         'blog/post/detail.html',
         {
             'post': post,
             'comments': comments,
-            'form': form
+            'form': form,
+            'similar_posts': similar_posts,
         }
     )
 

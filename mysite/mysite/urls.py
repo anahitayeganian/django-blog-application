@@ -16,9 +16,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
+from django.views.generic.base import RedirectView
 
 # Main URL configuration for the entire Django project
 urlpatterns = [
+    # Redirect the root URL to the main page of the blog app
+    path('', RedirectView.as_view(url='/blog/', permanent=True)),
     # URL route for the Django admin interface
     path('admin/', admin.site.urls),
     # Include URL patterns from the blog app, with a namespace for URL reversing

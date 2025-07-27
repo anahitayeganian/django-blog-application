@@ -13,7 +13,9 @@
         </div>
         <div id="sidebar">
             <h2>My blog</h2>
-            <p>Explore our {% total_posts %} blog posts!</p>
+            <p>Explore our {% total_posts %} blog posts.</p>
+            <h3>Latest posts</h3>
+            {% show_latest_posts 3 %}
         </div>
     </body>
 </html>

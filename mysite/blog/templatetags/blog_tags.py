@@ -1,5 +1,7 @@
 from django import template
 from django.db.models import Count
+from django.utils.safestring import mark_safe
+import markdown
 from ..models import Post
 
 # Create a template library instance to register custom tags
@@ -22,3 +24,9 @@ def get_most_commented_posts(count=5):
     # Returns the top 'count' most commented published posts, ordered first by number of comments,
     # then by publication date (both descending)
     return Post.published.annotate(total_comments=Count('comments')).order_by('-total_comments', '-publication_date')[:count]
+
+# Custom Django template filter that converts markdown-formatted text to HTML
+# Uses the markdown library for conversion and marks the result as safe to prevent auto-escaping in templates
+@register.filter(name='markdown')
+def markdown_format(text):
+    return mark_safe(markdown.markdown(text))

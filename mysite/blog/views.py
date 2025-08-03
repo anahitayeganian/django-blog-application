@@ -1,10 +1,11 @@
+from django.contrib.postgres.search import SearchVector
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 from django.views.generic import ListView
 from taggit.models import Tag
-from .forms import CommentForm, EmailPostForm
+from .forms import CommentForm, EmailPostForm, SearchForm
 from .models import Post
 from .services import send_post_recommendation_email
 
@@ -188,6 +189,43 @@ def post_comment(request, post_id):
             'post': post,
             'form': form,
             'comment': comment
+        }
+    )
+
+def post_search(request):
+    """
+    Handle the logic for searching published blog posts based on a user-provided string.
+    This view checks for a query parameter in the GET request. If present and valid, it performs a full-text search
+    using PostgreSQL to retrieve published posts that match the search string within their title or body.
+
+    Args:
+        request (HttpRequest): The incoming HTTP request potentially containing a search query.
+
+    Returns:
+        HttpResponse: HTML response rendering 'blog/post/search.html' with the search form, the query string, and the list of matched posts.
+    """
+    form = SearchForm()
+    query = None
+    results = []
+
+    if 'query' in request.GET:
+        # Populate the form with submitted data from the GET request
+        form = SearchForm(request.GET)
+        if form.is_valid():
+            # Extract the cleaned query string from the form data
+            query = form.cleaned_data['query']
+            # Perform a full-text search on published posts by creating a search vector from the title and body fields,
+            # then filter posts that match the user's query
+            results = Post.published.annotate(search=SearchVector('title','body'),).filter(search=query)
+
+    # Render the search page template, passing the form, original query, and any search results
+    return render(
+        request,
+        'blog/post/search.html',
+        {
+            'form': form,
+            'query': query,
+            'results': results
         }
     )
 

@@ -35,9 +35,9 @@ h2 {
 }
 
 p.date {
-    color: #ccc;
+    color: #999;
     font-family: georgia, serif;
-    font-size: 12px;
+    font-size: 14px;
     font-style: italic; 
 }
 
@@ -112,4 +112,45 @@ input[type=submit] {
 
 #sidebar ul li {
     margin-bottom: 6px;
+}
+
+/* Search form layout */
+.search-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* Search input */
+.search-form input[type="text"] {
+    flex: 1;
+    padding: 10px;
+    font-size: 15px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+/* Submit button */
+.search-form input[type="submit"] {
+    border-radius: 5px;
+    background-color: #00abff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    padding: 10px 20px;
+    font-size: 15px;
+    transition: background-color 0.3s ease;
+}
+
+.search-form input[type="submit"]:hover {
+    background-color: #008ccc;
+}
+
+/* Result summary */
+.search-meta {
+    background: #f7f7f7;
+    border-left: 4px solid #00abff;
+    margin-top: 8px;
+    border-radius: 4px;
+    padding: 5px 10px;
 }

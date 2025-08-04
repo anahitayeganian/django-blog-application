@@ -22,11 +22,13 @@ def post_list(request, tag_slug=None):
     """
     post_list = Post.published.all()
     tag = None
+
     if tag_slug:
         # Retrieve the tag object by its slug or return 404 if not found
         tag = get_object_or_404(Tag, slug=tag_slug)
         # Filter posts by the specified tag
         post_list = post_list.filter(tags__in=[tag])
+
     # Paginate posts: 5 per page
     paginator = Paginator(post_list, 5)
     # Retrieve the current page number from the GET query parameters, defaulting to 1 if absent
@@ -47,7 +49,7 @@ def post_list(request, tag_slug=None):
         'blog/post/list.html',
         {
             'posts': posts,
-            'tag': tag
+            'tag': tag,
         }
     )
 
@@ -204,7 +206,7 @@ def post_search(request):
     Returns:
         HttpResponse: HTML response rendering 'blog/post/search.html' with the search form, the query string, and the list of matched posts.
     """
-    form = SearchForm()
+    search_form = SearchForm()
     query = None
     results = []
 
@@ -221,11 +223,11 @@ def post_search(request):
     # Render the search page template, passing the form, original query, and any search results
     return render(
         request,
-        'blog/post/search.html',
+        'blog/post/list.html',
         {
-            'form': form,
+            'search_form': search_form,
             'query': query,
-            'results': results
+            'posts': results
         }
     )
 

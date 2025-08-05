@@ -1,5 +1,4 @@
-from django.contrib.postgres.search import SearchVector
-from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
@@ -182,15 +181,15 @@ def post_comment(request, post_id):
 
 def post_search(request):
     """
-    Search published posts based on a user-provided string.
-    If the query parameter is present and valid, performs a PostgreSQL full-text search on post titles and bodies,
-    and paginates the result.
+    Search published posts based on a user-provided string using PostgreSQL.
+    If a valid query parameter is provided, performs a full-text search on the title and body fields, ranks the results
+    by relevance, and paginates them.
 
     Args:
-        request (HttpRequest): The HTTP request object, expected to include a search query.
+        request (HttpRequest): The HTTP request object, containing the user's search query.
 
     Returns:
-        HttpResponse: Rendered HTML page with the list of matched posts.
+        HttpResponse: Rendered HTML page with the paginated list of matched posts.
     """
     search_form = SearchForm()
     query = None
@@ -202,9 +201,23 @@ def post_search(request):
         if form.is_valid():
             # Extract the cleaned query string from the form data
             query = form.cleaned_data['query']
-            # Perform a full-text search on published posts by creating a search vector from the title and body fields,
-            # then filter posts that match the user's query
-            results = Post.published.annotate(search=SearchVector('title','body')).filter(search=query)
+
+            # Combine title and body fields into a single search vector
+            search_vector = SearchVector('title', 'body')
+            # Convert the user’s query into a format suitable for PostgreSQL full-text search
+            search_query = SearchQuery(query)
+
+            # Annotate the posts queryset with (search) the combined search vector used for full-text search and
+            # (rank) a relevance score calculated by comparing the search vector to the search query
+            # Then filter posts matching the query and order by descending relevance (highest rank first)
+            results = (
+                Post.published.annotate(
+                    search=search_vector,
+                    rank=SearchRank(search_vector, search_query)
+                )
+                .filter(search=search_query)
+                .order_by('-rank')
+            )
 
     paginated_posts = paginate_queryset(request, results, per_page=5)
 

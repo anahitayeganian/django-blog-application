@@ -25,7 +25,7 @@
     </div>
 
     {% if tag %}
-        <h2>Posts tagged with "{{ tag.name }}"</h2>
+        <p>Posts tagged with "<strong>{{ tag.name }}</strong>"</p>
     {% endif %}
 
     {% for post in posts %}

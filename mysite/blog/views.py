@@ -7,18 +7,20 @@ from django.views.generic import ListView
 from taggit.models import Tag
 from .forms import CommentForm, EmailPostForm, SearchForm
 from .models import Post
-from .services import send_post_recommendation_email
+from .services import paginate_queryset, send_post_recommendation_email
 
 def post_list(request, tag_slug=None):
     """
-    Display a list of published blog posts with pagination. If a tag is specified, only posts with that tag are shown.
+    Display a list of published blog posts, optionally filtered by tag.
+    If a tag_slug is provided, the view filters posts to only include those tagged accordingly.
+    The result is paginated.
 
     Args:
-        request (HttpRequest): The incoming HTTP request, potentially containing a page GET parameter.
-        tag_slug (str, optional): The slug of the tag used to filter the posts. Defaults to None.
+        request (HttpRequest): The HTTP request object.
+        tag_slug (str, optional): The slug identifying the tag to filter posts by. Defaults to None.
 
     Returns:
-        HttpResponse: HTML response with the rendered 'blog/post/list.html' template.
+        HttpResponse: Rendered HTML page displaying the list of posts.
     """
     post_list = Post.published.all()
     tag = None
@@ -29,33 +31,20 @@ def post_list(request, tag_slug=None):
         # Filter posts by the specified tag
         post_list = post_list.filter(tags__in=[tag])
 
-    # Paginate posts: 5 per page
-    paginator = Paginator(post_list, 5)
-    # Retrieve the current page number from the GET query parameters, defaulting to 1 if absent
-    page_number = request.GET.get('page', 1)
-
-    try:
-        # Fetch posts for the requested page
-        posts = paginator.page(page_number)
-    except PageNotAnInteger:
-        # If page_number is not an integer, return the first page
-        posts = paginator.page(1)
-    except EmptyPage:
-        # If page number is out of range, return the last valid page
-        posts = paginator.page(paginator.num_pages)
+    paginated_posts = paginate_queryset(request, post_list, per_page=5)
 
     return render(
         request,
         'blog/post/list.html',
         {
-            'posts': posts,
+            'posts': paginated_posts,
             'tag': tag,
         }
     )
 
 def post_detail(request, year, month, day, post):
     """
-    Retrieve and render a published blog post based on its slug and publication date.
+    Display the details of a single published post, retrieved based on its slug and publication date.
 
     Args:
         request (HttpRequest): The HTTP request object.
@@ -65,8 +54,8 @@ def post_detail(request, year, month, day, post):
         post (str): The slug identifying the post.
 
     Returns:
-        HttpResponse: HTML response with the rendered 'blog/post/detail.html' template, including the post, its
-        comments, an empty comment submission form, and a list of up to four similar posts based on shared tags.
+        HttpResponse: Rendered HTML page with the post, comments, an empty comment submission form, and a list of up
+        to four similar posts based on shared tags.
 
     Raises:
         Http404: If no matching published post is found for the given slug and date.
@@ -113,14 +102,14 @@ def post_detail(request, year, month, day, post):
 
 def post_share(request, post_id):
     """
-    Handle the logic for sharing a blog post via email.
+    Allow users to share a blog post via email.
 
     Args:
         request (HttpRequest): The HTTP request object.
         post_id (int): The ID of the post to be shared.
 
     Returns:
-        HttpResponse: HTML response with the rendered 'blog/post/share.html' template.
+        HttpResponse: Rendered HTML page containing the share form.
 
     Raises:
         Http404: If no published post with the given ID exists.
@@ -156,18 +145,15 @@ def post_share(request, post_id):
 def post_comment(request, post_id):
     """
     Handle the submission of a comment on a specific blog post.
-    This view processes a POST request containing comment data submitted via a form.
-    If the form is valid, it associates the comment with the corresponding published post,
-    saves the comment to the database, and renders a confirmation message using the 'comment.html' template.
-    If the form is invalid, the same template is rendered again with the form and validation errors. The comment form
-    itself is included via the 'includes/comment_form.html' template.
+    If the form is valid, it associates and saves the comment with the corresponding published post, then renders a confirmation message.
+    If the form is invalid, the same template is rendered again with the form and validation errors.
 
     Args:
-        request (HttpRequest): The HTTP request object containing the submitted form data.
+        request (HttpRequest): The HTTP request object containing the form data.
         post_id (int): The ID of the blog post being commented on.
 
     Returns:
-        HttpResponse: HTML response with the rendered 'blog/post/comment.html' template.
+        HttpResponse: Rendered HTML page.
 
     Raises:
         Http404: If no published post with the given ID exists.
@@ -196,19 +182,19 @@ def post_comment(request, post_id):
 
 def post_search(request):
     """
-    Handle the logic for searching published blog posts based on a user-provided string.
-    This view checks for a query parameter in the GET request. If present and valid, it performs a full-text search
-    using PostgreSQL to retrieve published posts that match the search string within their title or body.
+    Search published posts based on a user-provided string.
+    If the query parameter is present and valid, performs a PostgreSQL full-text search on post titles and bodies,
+    and paginates the result.
 
     Args:
-        request (HttpRequest): The incoming HTTP request potentially containing a search query.
+        request (HttpRequest): The HTTP request object, expected to include a search query.
 
     Returns:
-        HttpResponse: HTML response rendering 'blog/post/search.html' with the search form, the query string, and the list of matched posts.
+        HttpResponse: Rendered HTML page with the list of matched posts.
     """
     search_form = SearchForm()
     query = None
-    results = []
+    results = Post.published.none()
 
     if 'query' in request.GET:
         # Populate the form with submitted data from the GET request
@@ -218,7 +204,9 @@ def post_search(request):
             query = form.cleaned_data['query']
             # Perform a full-text search on published posts by creating a search vector from the title and body fields,
             # then filter posts that match the user's query
-            results = Post.published.annotate(search=SearchVector('title','body'),).filter(search=query)
+            results = Post.published.annotate(search=SearchVector('title','body')).filter(search=query)
+
+    paginated_posts = paginate_queryset(request, results, per_page=5)
 
     # Render the search page template, passing the form, original query, and any search results
     return render(
@@ -227,14 +215,13 @@ def post_search(request):
         {
             'search_form': search_form,
             'query': query,
-            'posts': results
+            'posts': paginated_posts,
         }
     )
 
 class PostListView(ListView):
     """
-    Displays a paginated list of published blog posts.
-    Uses the blog/post/list.html template and shows 5 posts per page.
+    Class-based view to display a paginated list of published posts.
     """
     queryset = Post.published.all()
     context_object_name = 'posts'

@@ -203,19 +203,23 @@ def post_search(request):
             query = form.cleaned_data['query']
 
             # Combine title and body fields into a single search vector
-            search_vector = SearchVector('title', 'body', config='english')
+            # Assign higher weight to title to prioritize matches in the title over the body
+            search_vector = (
+                    SearchVector( 'title', weight='A', config='english') +
+                    SearchVector('body', weight='B', config='english')
+            )
             # Convert the user’s query into a format suitable for PostgreSQL full-text search
             search_query = SearchQuery(query, config='english')
 
             # Annotate the posts queryset with (search) the combined search vector used for full-text search and
             # (rank) a relevance score calculated by comparing the search vector to the search query
-            # Then filter posts matching the query and order by descending relevance (highest rank first)
+            # Then filter posts with a relevance rank of at least 0.3, and order by descending relevance (highest rank first)
             results = (
                 Post.published.annotate(
                     search=search_vector,
                     rank=SearchRank(search_vector, search_query)
                 )
-                .filter(search=search_query)
+                .filter(rank__gte=0.3)
                 .order_by('-rank')
             )
 

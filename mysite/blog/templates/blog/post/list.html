@@ -16,7 +16,7 @@
             <div class="search-meta">
                 <p>Showing results for "<strong>{{ query }}</strong>"</p>
                 <h4>
-                    {% with posts.count as total_results %}
+                    {% with posts.paginator.count as total_results %}
                         {{ total_results }} result{{ total_results|pluralize }} found
                     {% endwith %}
                 </h4>

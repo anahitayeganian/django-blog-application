@@ -203,9 +203,9 @@ def post_search(request):
             query = form.cleaned_data['query']
 
             # Combine title and body fields into a single search vector
-            search_vector = SearchVector('title', 'body')
+            search_vector = SearchVector('title', 'body', config='english')
             # Convert the user’s query into a format suitable for PostgreSQL full-text search
-            search_query = SearchQuery(query)
+            search_query = SearchQuery(query, config='english')
 
             # Annotate the posts queryset with (search) the combined search vector used for full-text search and
             # (rank) a relevance score calculated by comparing the search vector to the search query

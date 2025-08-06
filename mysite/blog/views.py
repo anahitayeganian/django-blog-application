@@ -1,6 +1,5 @@
-from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
+from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank, TrigramSimilarity
 from django.db.models import Count, Q
-from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 from django.views.generic import ListView
@@ -257,20 +256,45 @@ def weighted_search(query):
         .order_by('-rank')
     )
 
+def trigram_search(query):
+    """
+    Full-text search using trigram similarity on the title field.
+    Returns posts with a similarity score above a threshold, ordered by similarity.
+
+    Args:
+        query (str): The user's search query.
+
+    Returns:
+        QuerySet: Posts marching the search query base on trigram similarity, ordered by descending similarity.
+    """
+    # Annotate posts with a similarity score based on trigram similarity between the post's title and the query string
+    # Trigram similarity measures how closely two strings match by comparing overlapping sequences of three characters,
+    # enabling fuzzy matching that can handle typos or partial matches
+    # Filter out posts with similarity below 0.1 to avoid irrelevant results
+    return (
+        Post.published.annotate(
+            similarity=TrigramSimilarity('title', query),
+        )
+        .filter(similarity__gt=0.07)
+        .order_by('-similarity')
+    )
+
 # Mapping of search types to their corresponding search function
 SEARCH_FUNCTIONS = {
     'basic': basic_search,
     'ranked': ranked_search,
     'weighted': weighted_search,
+    'trigram': trigram_search,
 }
 
-def post_search(request, search_type='weighted'):
+def post_search(request, search_type='trigram'):
     """
     Search published posts based on a user-provided string using PostgreSQL full-text search.
     Delegates the search logic to different implementations depending on the search_type:
         - basic: Full-text match without ranking.
         - ranked: Match with relevance-based ordering.
         - weighted: Ranked match with weighted fields and a relevance threshold.
+        - trigram: Search using trigram similarity for fuzzy matching on the title.
     The results are paginated.
 
     Args:

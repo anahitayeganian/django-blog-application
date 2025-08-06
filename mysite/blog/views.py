@@ -1,5 +1,6 @@
 from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
 from django.db.models import Count, Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 from django.views.generic import ListView
@@ -179,14 +180,102 @@ def post_comment(request, post_id):
         }
     )
 
-def post_search(request):
+def basic_search(query):
     """
-    Search published posts based on a user-provided string using PostgreSQL.
-    If a valid query parameter is provided, performs a full-text search on the title and body fields, ranks the results
-    by relevance, and paginates them.
+    Basic full-text search on title and body fields without ranking.
+
+    Args:
+        query (str): The user's search query.
+
+    Returns:
+        QuerySet: Posts matching the search query.
+    """
+    # Perform a full-text search on published posts by creating a search vector from the title and body fields, # then filter posts that match the user's query
+    return (
+        Post.published.annotate(
+            search=SearchVector('title', 'body')
+        )
+        .filter(search=query)
+    )
+
+def ranked_search(query):
+    """
+    Full-text search with relevance ranking, searching title and body.
+
+    Args:
+        query (str): The user's search query.
+
+    Returns:
+        QuerySet: Posts matching the search query, ordered by rank.
+    """
+    # Combine title and body fields into a single search vector
+    search_vector = SearchVector('title', 'body', config='english')
+    # Convert the user's query into a format suitable for PostgreSQL full-text search
+    search_query = SearchQuery(query, config='english')
+
+    # Annotate the posts queryset with (search) the combined search vector used for full-text search and
+    # (rank) a relevance score calculated by comparing the search vector to the search query
+    # Then filter posts matching the query and order by descending relevance (highest rank first)
+    return (
+        Post.published.annotate(
+            search=search_vector,
+            rank=SearchRank(search_vector, search_query)
+        )
+        .filter(search=search_query)
+        .order_by('-rank')
+    )
+
+def weighted_search(query):
+    """
+    Full-text search with weighted search vectors, ranking, and rank threshold.
+    Titles have higher weight than body text, and only posts with rank >= 0.3 are returned.
+
+    Args:
+        query (str): The user's search query.
+
+    Returns:
+        QuerySet: Posts matching the search query, filtered by rank threshold, ordered by rank.
+    """
+    # Combine title and body fields into a single search vector
+    # Assign higher weight to title to prioritize matches in the title over the body
+    search_vector = (
+            SearchVector('title', weight='A', config='english') +
+            SearchVector('body', weight='B', config='english')
+    )
+    # Convert the user’s query into a format suitable for PostgreSQL full-text search
+    search_query = SearchQuery(query, config='english')
+
+    # Annotate the posts queryset with (search) the combined search vector used for full-text search and
+    # (rank) a relevance score calculated by comparing the search vector to the search query
+    # Then filter posts with a relevance rank of at least 0.3, and order by descending relevance (highest rank first)
+    return (
+        Post.published.annotate(
+            search=search_vector,
+            rank=SearchRank(search_vector, search_query)
+        )
+        .filter(rank__gte=0.3)
+        .order_by('-rank')
+    )
+
+# Mapping of search types to their corresponding search function
+SEARCH_FUNCTIONS = {
+    'basic': basic_search,
+    'ranked': ranked_search,
+    'weighted': weighted_search,
+}
+
+def post_search(request, search_type='weighted'):
+    """
+    Search published posts based on a user-provided string using PostgreSQL full-text search.
+    Delegates the search logic to different implementations depending on the search_type:
+        - basic: Full-text match without ranking.
+        - ranked: Match with relevance-based ordering.
+        - weighted: Ranked match with weighted fields and a relevance threshold.
+    The results are paginated.
 
     Args:
         request (HttpRequest): The HTTP request object, containing the user's search query.
+        search_type (str): The type of search to perform.
 
     Returns:
         HttpResponse: Rendered HTML page with the paginated list of matched posts.
@@ -201,27 +290,8 @@ def post_search(request):
         if form.is_valid():
             # Extract the cleaned query string from the form data
             query = form.cleaned_data['query']
-
-            # Combine title and body fields into a single search vector
-            # Assign higher weight to title to prioritize matches in the title over the body
-            search_vector = (
-                    SearchVector( 'title', weight='A', config='english') +
-                    SearchVector('body', weight='B', config='english')
-            )
-            # Convert the user’s query into a format suitable for PostgreSQL full-text search
-            search_query = SearchQuery(query, config='english')
-
-            # Annotate the posts queryset with (search) the combined search vector used for full-text search and
-            # (rank) a relevance score calculated by comparing the search vector to the search query
-            # Then filter posts with a relevance rank of at least 0.3, and order by descending relevance (highest rank first)
-            results = (
-                Post.published.annotate(
-                    search=search_vector,
-                    rank=SearchRank(search_vector, search_query)
-                )
-                .filter(rank__gte=0.3)
-                .order_by('-rank')
-            )
+            search_func = SEARCH_FUNCTIONS.get(search_type)
+            results = search_func(query)
 
     paginated_posts = paginate_queryset(request, results, per_page=5)
 

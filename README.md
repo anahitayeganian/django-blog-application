@@ -75,3 +75,7 @@ container setup.
 - REST API for frontend decoupling
 - CI/CD setup and deployment to cloud platform (e.g., Heroku, Railway, Fly.io)
 -->
+
+## Testing
+
+`pytest` tests covering core application functionality, implemented to help ensure the application works as expected and maintain code quality.
